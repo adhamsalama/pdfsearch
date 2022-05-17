@@ -52,7 +52,7 @@ def search(
                     # color matches
                     colored = x
                     matches_to_color = re.compile(
-                        ".*(" + "|".join(regex_list) + ").*", re.IGNORECASE
+                        "(" + "|".join(regex_list) + ")", re.IGNORECASE
                     ).findall(x)
                     for m in matches_to_color:
                         colored = colored.replace(
