@@ -3,38 +3,43 @@ from typing import cast, Any
 import typer
 import pdftotext  # type: ignore
 import re
+
 app = typer.Typer()
 
 
 class Color:
-    PURPLE = '\033[95m'
-    CYAN = '\033[96m'
-    DARKCYAN = '\033[36m'
-    BLUE = '\033[94m'
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    RED = '\033[91m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-    END = '\033[0m'
+    PURPLE = "\033[95m"
+    CYAN = "\033[96m"
+    DARKCYAN = "\033[36m"
+    BLUE = "\033[94m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    RED = "\033[91m"
+    BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
+    END = "\033[0m"
 
 
 @app.command()
-def search(filename: str, query: list[str],
-           ignorecase: bool = typer.Option(
-               True, help='Ignore case for searching'),
-           exact: bool = typer.Option(False, help='Match exact substring'),
-           plain: bool = typer.Option(False, help='Output plaintext without coloring, bolding and underlining')):
-    with open(filename, 'rb') as file:
+def search(
+    filename: str,
+    query: list[str],
+    ignorecase: bool = typer.Option(True, help="Ignore case for searching"),
+    exact: bool = typer.Option(False, help="Match exact substring"),
+    plain: bool = typer.Option(
+        False, help="Output plaintext without coloring, bolding and underlining"
+    ),
+):
+    with open(filename, "rb") as file:
         pdf = pdftotext.PDF(file)
         results: list[Any] = []
         regex_list: list[str] = []
         for word in query:
             regex_list.append(re.escape(word))
         if exact:
-            regex_pattern = '(' + '|'.join(regex_list) + ')'
+            regex_pattern = "(" + "|".join(regex_list) + ")"
         else:
-            regex_pattern = '.*(?:' + '|'.join(regex_list) + ').*'
+            regex_pattern = ".*(?:" + "|".join(regex_list) + ").*"
         if ignorecase:
             regex = re.compile(regex_pattern, re.IGNORECASE)
         else:
@@ -47,10 +52,13 @@ def search(filename: str, query: list[str],
                     # color matches
                     colored = x
                     matches_to_color = re.compile(
-                        '.*(' + '|'.join(regex_list) + ').*', re.IGNORECASE).findall(x)
+                        ".*(" + "|".join(regex_list) + ").*", re.IGNORECASE
+                    ).findall(x)
                     for m in matches_to_color:
                         colored = colored.replace(
-                            m, Color.GREEN + Color.BOLD + Color.UNDERLINE + m + Color.END)
+                            m,
+                            Color.GREEN + Color.BOLD + Color.UNDERLINE + m + Color.END,
+                        )
                     matches.append(colored)
                 else:
                     matches.append(x)
@@ -58,5 +66,5 @@ def search(filename: str, query: list[str],
             print(result)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app()
