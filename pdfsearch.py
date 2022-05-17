@@ -20,7 +20,11 @@ class Color:
 
 
 @app.command()
-def search(filename: str, query: list[str], ignorecase: bool = typer.Option(True, help='Ignore case for searching'), exact: bool = typer.Option(False, help='Match exact substring')):
+def search(filename: str, query: list[str],
+           ignorecase: bool = typer.Option(
+               True, help='Ignore case for searching'),
+           exact: bool = typer.Option(False, help='Match exact substring'),
+           plain: bool = typer.Option(False, help='Output plaintext without coloring, bolding and underlining')):
     with open(filename, 'rb') as file:
         pdf = pdftotext.PDF(file)
         results: list[Any] = []
@@ -39,14 +43,17 @@ def search(filename: str, query: list[str], ignorecase: bool = typer.Option(True
         for page in pdf:
             # find matches
             for x in regex.findall(page):
-                # color matches
-                colored = x
-                matches_to_color = re.compile(
-                    '.*(' + '|'.join(regex_list) + ').*', re.IGNORECASE).findall(x)
-                for m in matches_to_color:
-                    colored = colored.replace(
-                        m, Color.GREEN + Color.BOLD + Color.UNDERLINE + m + Color.END)
-                matches.append(colored)
+                if not plain:
+                    # color matches
+                    colored = x
+                    matches_to_color = re.compile(
+                        '.*(' + '|'.join(regex_list) + ').*', re.IGNORECASE).findall(x)
+                    for m in matches_to_color:
+                        colored = colored.replace(
+                            m, Color.GREEN + Color.BOLD + Color.UNDERLINE + m + Color.END)
+                    matches.append(colored)
+                else:
+                    matches.append(x)
         for result in matches:
             print(result)
 
