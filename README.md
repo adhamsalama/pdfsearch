@@ -1,6 +1,6 @@
 # PDFSEARCH
 
-This is a CLI application to search pdf
+This is a CLI application which searches PDFs quickly using multiprocessing.
 
 # How to setup
 
