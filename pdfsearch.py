@@ -1,8 +1,10 @@
 #! /usr/bin/python
-from typing import cast, Any
+
+from typing import Pattern
 import typer
-import pdftotext  # type: ignore
+import pdftotext
 import re
+from concurrent.futures import Future, ProcessPoolExecutor, wait
 
 app = typer.Typer()
 
@@ -20,32 +22,19 @@ class Color:
     END = "\033[0m"
 
 
-@app.command()
-def search(
+def search_pdf(
     filename: str,
-    query: list[str],
-    ignorecase: bool = typer.Option(True, help="Ignore case for searching"),
-    exact: bool = typer.Option(False, help="Match exact substring"),
-    plain: bool = typer.Option(
-        False, help="Output plaintext without coloring, bolding and underlining"
-    ),
+    start: int,
+    end: int,
+    regex: Pattern[str],
+    regex_list: list[str],
+    plain: bool,
 ):
     with open(filename, "rb") as file:
         pdf = pdftotext.PDF(file)
-        results: list[Any] = []
-        regex_list: list[str] = []
-        for word in query:
-            regex_list.append(re.escape(word))
-        if exact:
-            regex_pattern = "(" + "|".join(regex_list) + ")"
-        else:
-            regex_pattern = ".*(?:" + "|".join(regex_list) + ").*"
-        if ignorecase:
-            regex = re.compile(regex_pattern, re.IGNORECASE)
-        else:
-            regex = re.compile(regex_pattern)
         matches: list[str] = []
-        for page in pdf:
+        for i in range(start, end):
+            page = pdf[i]
             # find matches
             for x in regex.findall(page):
                 if not plain:
@@ -62,8 +51,55 @@ def search(
                     matches.append(colored)
                 else:
                     matches.append(x)
-        for result in matches:
-            print(result)
+    return matches
+
+
+@app.command()
+def search(
+    filename: str,
+    query: list[str],
+    ignorecase: bool = typer.Option(True, help="Ignore case for searching"),
+    exact: bool = typer.Option(False, help="Match exact substring"),
+    plain: bool = typer.Option(
+        False, help="Output plaintext without coloring, bolding and underlining"
+    ),
+    processes: int = typer.Option(1, help="Number of parallel processes"),
+):
+    with open(filename, "rb") as file:
+        pdf = pdftotext.PDF(file)
+        regex_list: list[str] = []
+        for word in query:
+            regex_list.append(re.escape(word))
+        if exact:
+            regex_pattern = "(" + "|".join(regex_list) + ")"
+        else:
+            regex_pattern = ".*(?:" + "|".join(regex_list) + ").*"
+        if ignorecase:
+            regex = re.compile(regex_pattern, re.IGNORECASE)
+        else:
+            regex = re.compile(regex_pattern)
+        with ProcessPoolExecutor(processes) as executor:
+            searches: list[Future[list[str]]] = []
+            step = len(pdf) // processes
+            step = step if step > 0 else 1
+            for i in range(0, len(pdf), step):
+                next_index = i + len(pdf) // processes
+                next_index = next_index if 0 < next_index < len(pdf) else len(pdf)
+                searches.append(
+                    executor.submit(
+                        search_pdf,
+                        filename=filename,
+                        start=i,
+                        end=next_index,
+                        regex=regex,
+                        regex_list=regex_list,
+                        plain=plain,
+                    )
+                )
+            wait(searches)
+            for search in searches:
+                for result in search.result():
+                    print(result)
 
 
 if __name__ == "__main__":
